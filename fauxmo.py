@@ -35,6 +35,7 @@ import sys
 import time
 import urllib
 import uuid
+import os
 
 
 
@@ -102,7 +103,7 @@ class poller:
             target = self.targets.get(one_ready[0], None)
             if target:
                 target.do_read(one_ready[0])
- 
+
 
 # Base class for a generic UPnP device. This is far from complete
 # but it supports either specified or automatic IP address and port
@@ -123,7 +124,7 @@ class upnp_device(object):
             del(temp_socket)
             dbg("got local address of %s" % upnp_device.this_host_ip)
         return upnp_device.this_host_ip
-        
+
 
     def __init__(self, listener, poller, port, root_url, server_version, persistent_uuid, other_headers = None, ip_address = None):
         self.listener = listener
@@ -170,7 +171,7 @@ class upnp_device(object):
 
     def get_name(self):
         return "unknown"
-        
+
     def respond_to_search(self, destination, search_target):
         dbg("Responding to search for %s" % self.get_name())
         date_str = email.utils.formatdate(timeval=None, localtime=False, usegmt=True)
@@ -191,7 +192,7 @@ class upnp_device(object):
         message += "\r\n"
         temp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         temp_socket.sendto(message, destination)
- 
+
 
 # This subclass does the bulk of the work to mimic a WeMo switch on the network.
 
@@ -373,6 +374,22 @@ class rest_api_handler(object):
         return r.status_code == 200
 
 
+# This is a handler class for calling command line tools
+
+class system_handler(object):
+    def __init__(self, on_cmd, off_cmd):
+        self.on_cmd = on_cmd
+        self.off_cmd = off_cmd
+
+    def on(self):
+        code = os.system(self.on_cmd)
+        return code == 0
+
+    def off(self):
+        code = os.system(self.off_cmd)
+        return code == 0
+
+
 # Each entry is a list with the following elements:
 #
 # name of the virtual switch
@@ -384,7 +401,7 @@ class rest_api_handler(object):
 # list will be used.
 
 FAUXMOS = [
-    ['office lights', rest_api_handler('http://192.168.5.4/ha-api?cmd=on&a=office', 'http://192.168.5.4/ha-api?cmd=off&a=office')],
+    ['office lights', system_handler('echo "ON: $(date)" >> ~/last-run.txt', 'echo "OFF: $(date)" >> ~/last-run.txt')],
     ['kitchen lights', rest_api_handler('http://192.168.5.4/ha-api?cmd=on&a=kitchen', 'http://192.168.5.4/ha-api?cmd=off&a=kitchen')],
 ]
 
@@ -420,4 +437,3 @@ while True:
     except Exception, e:
         dbg(e)
         break
-
